@@ -78,8 +78,9 @@ async def setup_hasl_sensor(hass, config):
     try:
         logger.debug("[setup_hasl_sensor] Setting up RI4 sensors...")
         if config.data[CONF_INTEGRATION_TYPE] == SENSOR_STANDARD:
-            if CONF_RI4_KEY in config.data and CONF_SITE_ID in config.data:
-                await worker.assert_ri4(config.data[CONF_RI4_KEY], config.data[CONF_SITE_ID])
+            # RI4 key no longer required
+            if CONF_SITE_ID in config.data:
+                await worker.assert_ri4(config.data.get(CONF_RI4_KEY, ""), config.data[CONF_SITE_ID])
                 sensors.append(HASLDepartureSensor(hass, config, config.data[CONF_SITE_ID]))
             logger.debug("[setup_hasl_sensor] Force processing RI4 sensors")
             await worker.process_ri4()
@@ -90,12 +91,14 @@ async def setup_hasl_sensor(hass, config):
     try:
         logger.debug("[setup_hasl_sensor] Setting up SI2 sensors...")
         if config.data[CONF_INTEGRATION_TYPE] == SENSOR_DEVIATION:
-            if CONF_SI2_KEY in config.data:
-                for deviationid in ','.join(set(config.data[CONF_DEVIATION_LINES].split(','))).split(','):
-                    await worker.assert_si2_line(config.data[CONF_SI2_KEY], deviationid)
+            # SI2 key no longer required
+            for deviationid in ','.join(set(config.data.get(CONF_DEVIATION_LINES, "").split(','))).split(','):
+                if deviationid:
+                    await worker.assert_si2_line(config.data.get(CONF_SI2_KEY, ""), deviationid)
                     sensors.append(HASLDeviationSensor(hass, config, CONF_DEVIATION_LINE, deviationid))
-                for deviationid in ','.join(set(config.data[CONF_DEVIATION_STOPS].split(','))).split(','):
-                    await worker.assert_si2_stop(config.data[CONF_SI2_KEY], deviationid)
+            for deviationid in ','.join(set(config.data.get(CONF_DEVIATION_STOPS, "").split(','))).split(','):
+                if deviationid:
+                    await worker.assert_si2_stop(config.data.get(CONF_SI2_KEY, ""), deviationid)
                     sensors.append(HASLDeviationSensor(hass, config, CONF_DEVIATION_STOP, deviationid))
             logger.debug("[setup_hasl_sensor] Force processing SI2 sensors")
             await worker.process_si2()
@@ -106,8 +109,9 @@ async def setup_hasl_sensor(hass, config):
     try:
         logger.debug("[setup_hasl_sensor] Setting up RP3 sensors...")
         if config.data[CONF_INTEGRATION_TYPE] == SENSOR_ROUTE:
-            if CONF_RP3_KEY in config.data:
-                await worker.assert_rp3(config.data[CONF_RP3_KEY], config.data[CONF_SOURCE], config.data[CONF_DESTINATION])
+            # RP3 key no longer required
+            if CONF_SOURCE in config.data and CONF_DESTINATION in config.data:
+                await worker.assert_rp3(config.data.get(CONF_RP3_KEY, ""), config.data[CONF_SOURCE], config.data[CONF_DESTINATION])
                 sensors.append(HASLRouteSensor(hass, config, f"{config.data[CONF_SOURCE]}-{config.data[CONF_DESTINATION]}"))
             logger.debug("[setup_hasl_sensor] Force processing RP3 sensors")
             await worker.process_rp3()
@@ -119,12 +123,12 @@ async def setup_hasl_sensor(hass, config):
         logger.debug("[setup_hasl_sensor] Setting up TL2 sensors...")
         if config.data[CONF_INTEGRATION_TYPE] == SENSOR_STATUS:
             if CONF_ANALOG_SENSORS in config.data:
-                if CONF_TL2_KEY in config.data:
-                    await worker.assert_tl2(config.data[CONF_TL2_KEY])
+                # TL2 key no longer required
+                await worker.assert_tl2(config.data.get(CONF_TL2_KEY, ""))
 
-                    for sensortype in CONF_TRANSPORT_MODE_LIST:
-                        if sensortype in config.data and config.data[sensortype]:
-                            sensors.append(HASLTrafficStatusSensor(hass, config, sensortype))
+                for sensortype in CONF_TRANSPORT_MODE_LIST:
+                    if sensortype in config.data and config.data[sensortype]:
+                        sensors.append(HASLTrafficStatusSensor(hass, config, sensortype))
 
                 logger.debug("[setup_hasl_sensor] Force processing TL2 sensors")
                 await worker.process_tl2()
@@ -1322,9 +1326,10 @@ class HASLTrafficStatusSensor(HASLDevice):
 
         logger.debug("[async_update] Entered")
         logger.debug(f"[async_update] Processing {self._name}")
-        if self._worker.data.tl2[self._config.data[CONF_TL2_KEY]]["api_lastrun"]:
+        tl2_key = self._config.data.get(CONF_TL2_KEY, "default_tl2")
+        if self._worker.data.tl2[tl2_key]["api_lastrun"]:
             if self._worker.checksensorstate(self._enabled_sensor, STATE_ON):
-                if self._sensordata == [] or self._worker.getminutesdiff(now().strftime('%Y-%m-%d %H:%M:%S'), self._worker.data.tl2[self._config.data[CONF_TL2_KEY]]["api_lastrun"]) > self._config.data[CONF_SCAN_INTERVAL]:
+                if self._sensordata == [] or self._worker.getminutesdiff(now().strftime('%Y-%m-%d %H:%M:%S'), self._worker.data.tl2[tl2_key]["api_lastrun"]) > self._config.data[CONF_SCAN_INTERVAL]:
                     try:
                         await self._worker.process_tl2()
                         logger.debug("[async_update] Update processed")
@@ -1333,7 +1338,7 @@ class HASLTrafficStatusSensor(HASLDevice):
                 else:
                     logger.debug("[async_update] Not due for update, skipping")
 
-        self._sensordata = self._worker.data.tl2[self._config.data[CONF_TL2_KEY]]
+        self._sensordata = self._worker.data.tl2[tl2_key]
         logger.debug("[async_update] Completed")
         return
 

@@ -68,7 +68,7 @@ def standard_config_option_schema(options: dict = {}) -> dict:
     if not options:
         options = {CONF_SENSOR: "", CONF_RI4_KEY: "", CONF_SITE_ID: "", CONF_SENSOR: "", CONF_LINES: "", CONF_DIRECTION: DEFAULT_DIRECTION, CONF_SENSOR_PROPERTY: DEFAULT_SENSOR_PROPERTY, CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL, CONF_TIMEWINDOW: DEFAULT_TIMEWINDOW}
     return {
-        vol.Required(CONF_RI4_KEY, default=options.get(CONF_RI4_KEY)): str,
+        vol.Optional(CONF_RI4_KEY, default=options.get(CONF_RI4_KEY)): str,
         vol.Required(CONF_SITE_ID, default=options.get(CONF_SITE_ID)): int,
         vol.Required(CONF_SENSOR_PROPERTY, default=options.get(CONF_SENSOR_PROPERTY)): vol.In(CONF_SENSOR_PROPERTY_LIST),
         vol.Required(CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL)): int,
@@ -84,7 +84,7 @@ def deviation_config_option_schema(options: dict = {}) -> dict:
     if not options:
         options = {CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL, CONF_SENSOR: "", CONF_SI2_KEY: "", CONF_DEVIATION_STOPS: "", CONF_DEVIATION_LINES: ""}
     return {
-        vol.Required(CONF_SI2_KEY, default=options.get(CONF_SI2_KEY)): str,
+        vol.Optional(CONF_SI2_KEY, default=options.get(CONF_SI2_KEY)): str,
         vol.Optional(CONF_DEVIATION_STOPS, default=options.get(CONF_DEVIATION_STOPS)): str,
         vol.Optional(CONF_DEVIATION_LINES, default=options.get(CONF_DEVIATION_LINES)): str,
         vol.Required(CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL)): int,
@@ -105,7 +105,7 @@ def status_config_option_schema(options: dict = {}) -> dict:
     if not options:
         options = {CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL, CONF_SENSOR: "", CONF_TL2_KEY: "", CONF_ANALOG_SENSORS: False, CONF_METRO: False, CONF_TRAIN: False, CONF_LOCAL: False, CONF_TRAM: False, CONF_BUS: False, CONF_FERRY: False}
     return {
-        vol.Required(CONF_TL2_KEY, default=options.get(CONF_TL2_KEY)): str,
+        vol.Optional(CONF_TL2_KEY, default=options.get(CONF_TL2_KEY)): str,
         vol.Optional(CONF_METRO, default=options.get(CONF_METRO)): bool,
         vol.Optional(CONF_TRAIN, default=options.get(CONF_TRAIN)): bool,
         vol.Optional(CONF_LOCAL, default=options.get(CONF_LOCAL)): bool,
@@ -142,7 +142,7 @@ def route_config_option_schema(options: dict = {}) -> dict:
     if not options:
         options = {CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL, CONF_SENSOR: "", CONF_RP3_KEY: "", CONF_SOURCE: "", CONF_DESTINATION: ""}
     return {
-        vol.Required(CONF_RP3_KEY, default=options.get(CONF_RP3_KEY)): str,
+        vol.Optional(CONF_RP3_KEY, default=options.get(CONF_RP3_KEY)): str,
         vol.Required(CONF_SOURCE, default=options.get(CONF_SOURCE)): str,
         vol.Required(CONF_DESTINATION, default=options.get(CONF_DESTINATION)): str,
         vol.Required(CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL)): int,

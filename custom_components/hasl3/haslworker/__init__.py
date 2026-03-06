@@ -139,6 +139,9 @@ class HaslWorker(object):
     async def assert_rp3(self, key, source, destination):
         logger.debug("[assert_rp3] Entered")
 
+        if not key:
+            key = "default_rp3"
+
         listvalue = f"{source}-{destination}"
         if key not in self.data.rp3keys:
             logger.debug("[assert_rp3] Registered key")
@@ -231,55 +234,72 @@ class HaslWorker(object):
                     apidata = await api.request(srcLocID, dstLocID, srcLocLat, srcLocLng, dstLocLat, dstLocLng)
                     newdata['trips'] = []
 
+                    # New v2 API uses lowercase 'trips', old v1 used 'Trip'
+                    trip_list = apidata.get('trips') or apidata.get('Trip', [])
+
                     # Parse every trip
-                    for trip in apidata["Trip"]:
+                    for trip in trip_list:
                         newtrip = {
                             'fares': [],
                             'legs': []
                         }
 
-                        # Loop all fares and add
-                        for fare in trip['TariffResult']['fareSetItem'][0]['fareItem']:
-                            newfare = {}
-                            newfare['name'] = fare['name']
-                            newfare['desc'] = fare['desc']
-                            newfare['price'] = int(fare['price']) / 100
-                            newtrip['fares'].append(newfare)
+                        # Fares only present in old v1 API
+                        try:
+                            for fare in trip['TariffResult']['fareSetItem'][0]['fareItem']:
+                                newfare = {}
+                                newfare['name'] = fare['name']
+                                newfare['desc'] = fare['desc']
+                                newfare['price'] = int(fare['price']) / 100
+                                newtrip['fares'].append(newfare)
+                        except (KeyError, TypeError, IndexError):
+                            pass
+
+                        # New v2 API uses lowercase 'legs', old v1 used 'LegList'>'Leg'
+                        leg_list = trip.get('legs') or trip.get('LegList', {}).get('Leg', [])
 
                         # Add legs to trips
-                        for leg in trip['LegList']['Leg']:
+                        for leg in leg_list:
                             newleg = {}
                             # Walking is done by humans.
                             # And robots.
                             # Robots are scary.
-                            if leg["type"] == "WALK":
-                                newleg['name'] = leg['name']
+                            leg_type = leg.get('type') or leg.get('transportation', {}).get('product', {}).get('class', '')
+                            if leg_type == "WALK" or leg.get('isWalking'):
+                                newleg['name'] = leg.get('name', 'Walk')
                                 newleg['line'] = 'Walk'
                                 newleg['direction'] = 'Walk'
                                 newleg['category'] = 'WALK'
                             else:
-                                newleg['name'] = leg['Product']['name']
-                                newleg['line'] = leg['Product']['line']
-                                newleg['direction'] = leg['direction']
-                                newleg['category'] = leg['category']
-                            newleg['from'] = leg['Origin']['name']
-                            newleg['to'] = leg['Destination']['name']
-                            newleg['time'] = f"{leg['Origin']['date']} {leg['Origin']['time']}"
+                                # v2 API uses 'transportation' object, v1 used 'Product'
+                                transportation = leg.get('transportation', {})
+                                product = leg.get('Product', {})
+                                newleg['name'] = transportation.get('name') or product.get('name', '')
+                                newleg['line'] = transportation.get('number') or product.get('line', '')
+                                newleg['direction'] = leg.get('direction') or transportation.get('destination', {}).get('name', '')
+                                newleg['category'] = leg.get('category') or transportation.get('product', {}).get('name', '')
 
-                            if leg.get('Stops'):
-                                if leg['Stops'].get('Stop', {}):
-                                    newleg['stops'] = []
-                                    for stop in leg.get('Stops', {}).get('Stop', {}):
-                                        newleg['stops'].append(stop)
+                            # v2 uses 'origin'/'destination' dicts, v1 used 'Origin'/'Destination'
+                            origin = leg.get('origin') or leg.get('Origin', {})
+                            destination = leg.get('destination') or leg.get('Destination', {})
+                            newleg['from'] = origin.get('name', '')
+                            newleg['to'] = destination.get('name', '')
+                            dep_time = origin.get('departureTimePlanned') or f"{origin.get('date', '')} {origin.get('time', '')}"
+                            newleg['time'] = dep_time
+
+                            stops = leg.get('stopSequence') or leg.get('Stops', {}).get('Stop', [])
+                            if stops:
+                                newleg['stops'] = list(stops)
 
                             newtrip['legs'].append(newleg)
 
                         # Make some shortcuts for data
                         newtrip['first_leg'] = newtrip['legs'][0]['name']
                         newtrip['time'] = newtrip['legs'][0]['time']
-                        newtrip['price'] = newtrip['fares'][0]['price']
-                        newtrip['duration'] = str(isodate.parse_duration(trip['duration']))
-                        newtrip['transfers'] = trip['transferCount']
+                        newtrip['price'] = newtrip['fares'][0]['price'] if newtrip['fares'] else 0
+                        duration = trip.get('duration') or trip.get('duration', '')
+                        newtrip['duration'] = str(isodate.parse_duration(duration)) if duration else ''
+                        newtrip['transfers'] = trip.get('transferCount') or trip.get('interchanges', 0)
                         newdata['trips'].append(newtrip)
 
                     # Add shortcuts to info in the first trip if it exists
@@ -373,6 +393,9 @@ class HaslWorker(object):
     async def assert_si2(self, key, datakey, listkey, listvalue):
         logger.debug("[assert_si2] Entered")
 
+        if not key:
+            key = "default_si2"
+
         if key not in self.data.si2keys:
             logger.debug("[assert_si2] Registering key")
             self.data.si2keys[key] = {
@@ -415,21 +438,38 @@ class HaslWorker(object):
 
                 try:
                     deviationdata = await api.request(stop, '')
-                    deviationdata = deviationdata['ResponseData']
-
-                    deviations = []
-                    for (idx, value) in enumerate(deviationdata):
-                        deviations.append({
-                            'updated': value['Updated'],
-                            'title': value['Header'],
-                            'fromDate': value['FromDateTime'],
-                            'toDate': value['UpToDateTime'],
-                            'details': value['Details'],
-                            'sortOrder': value['SortOrder'],
-                        })
-
-                    newdata['data'] = sorted(deviations,
-                                             key=lambda k: k['sortOrder'])
+                    # New API returns array directly, old had 'ResponseData'
+                    if isinstance(deviationdata, list):
+                        # New format
+                        deviations = []
+                        for dev in deviationdata:
+                            if 'message_variants' in dev:
+                                for variant in dev['message_variants']:
+                                    if variant.get('language') == 'sv':  # Prefer Swedish
+                                        deviations.append({
+                                            'updated': dev.get('modified', dev.get('created', '')),
+                                            'title': variant.get('header', ''),
+                                            'fromDate': dev['publish'].get('from', ''),
+                                            'toDate': dev['publish'].get('upto', ''),
+                                            'details': variant.get('details', ''),
+                                            'sortOrder': dev['priority'].get('importance_level', 0),
+                                        })
+                                        break  # Use first Swedish variant
+                        newdata['data'] = sorted(deviations, key=lambda k: k['sortOrder'])
+                    else:
+                        # Old format
+                        deviationdata = deviationdata['ResponseData']
+                        deviations = []
+                        for (idx, value) in enumerate(deviationdata):
+                            deviations.append({
+                                'updated': value['Updated'],
+                                'title': value['Header'],
+                                'fromDate': value['FromDateTime'],
+                                'toDate': value['UpToDateTime'],
+                                'details': value['Details'],
+                                'sortOrder': value['SortOrder'],
+                            })
+                        newdata['data'] = sorted(deviations, key=lambda k: k['sortOrder'])
                     newdata['attribution'] = "Stockholms Lokaltrafik"
                     newdata['last_updated'] = now().strftime('%Y-%m-%d %H:%M:%S')
                     newdata['api_result'] = "Success"
@@ -451,20 +491,38 @@ class HaslWorker(object):
 
                 try:
                     deviationdata = await api.request('', line)
-                    deviationdata = deviationdata['ResponseData']
-
-                    deviations = []
-                    for (idx, value) in enumerate(deviationdata):
-                        deviations.append({
-                            'updated': value['Updated'],
-                            'title': value['Header'],
-                            'fromDate': value['FromDateTime'],
-                            'toDate': value['UpToDateTime'],
-                            'details': value['Details'],
-                            'sortOrder': value['SortOrder'],
-                        })
-
-                    newdata['data'] = sorted(deviations, key=lambda k: k['sortOrder'])
+                    # New API returns array directly, old had 'ResponseData'
+                    if isinstance(deviationdata, list):
+                        # New format
+                        deviations = []
+                        for dev in deviationdata:
+                            if 'message_variants' in dev:
+                                for variant in dev['message_variants']:
+                                    if variant.get('language') == 'sv':  # Prefer Swedish
+                                        deviations.append({
+                                            'updated': dev.get('modified', dev.get('created', '')),
+                                            'title': variant.get('header', ''),
+                                            'fromDate': dev['publish'].get('from', ''),
+                                            'toDate': dev['publish'].get('upto', ''),
+                                            'details': variant.get('details', ''),
+                                            'sortOrder': dev['priority'].get('importance_level', 0),
+                                        })
+                                        break  # Use first Swedish variant
+                        newdata['data'] = sorted(deviations, key=lambda k: k['sortOrder'])
+                    else:
+                        # Old format
+                        deviationdata = deviationdata['ResponseData']
+                        deviations = []
+                        for (idx, value) in enumerate(deviationdata):
+                            deviations.append({
+                                'updated': value['Updated'],
+                                'title': value['Header'],
+                                'fromDate': value['FromDateTime'],
+                                'toDate': value['UpToDateTime'],
+                                'details': value['Details'],
+                                'sortOrder': value['SortOrder'],
+                            })
+                        newdata['data'] = sorted(deviations, key=lambda k: k['sortOrder'])
                     newdata['attribution'] = "Stockholms Lokaltrafik"
                     newdata['last_updated'] = now().strftime('%Y-%m-%d %H:%M:%S')
                     newdata['api_result'] = "Success"
@@ -486,6 +544,9 @@ class HaslWorker(object):
     async def assert_ri4(self, key, stop):
         logger.debug("[assert_ri4] Entered")
         stopkey = str(stop)
+
+        if not key:
+            key = "default_ri4"
 
         if key not in self.data.ri4keys:
             logger.debug("[assert_ri4] Registering key and stop")
@@ -867,6 +928,7 @@ class HaslWorker(object):
             'Ships': 'mdi:ferry',
             'Metros': 'mdi:subway-variant',
             'Trains': 'mdi:train',
+            'Ferries': 'mdi:ferry',
         }
 
         for ri4key in list(self.data.ri4keys):
@@ -881,41 +943,26 @@ class HaslWorker(object):
                 try:
                     departures = []
                     departuredata = await api.request(stop)
-                    departuredata = departuredata['ResponseData']
+                    # New API returns plural keys: metros, buses, trains, trams, ships
+                    for traffictype in ['metros', 'buses', 'trains', 'trams', 'ships']:
+                        if traffictype in departuredata:
+                            icon = iconswitcher.get(traffictype.title(), 'mdi:train-car')
+                            for value in departuredata[traffictype]:
+                                displaytime = value.get('display', '')
+                                diff = self.parseDepartureTime(displaytime)
+                                departures.append({
+                                    'line': value.get('line', {}).get('designation', ''),
+                                    'direction': value.get('direction_code', 0),
+                                    'departure': displaytime,
+                                    'destination': value.get('destination', ''),
+                                    'time': diff,
+                                    'expected': value.get('expected', ''),
+                                    'type': traffictype.title(),
+                                    'groupofline': value.get('line', {}).get('group_of_lines', ''),
+                                    'icon': icon,
+                                })
 
-                    for (i, traffictype) in enumerate(['Metros',
-                                                       'Buses',
-                                                       'Trains',
-                                                       'Trams',
-                                                       'Ships']):
-
-                        for (idx, value) in enumerate(
-                                departuredata[traffictype]):
-                            direction = value['JourneyDirection'] or 0
-                            displaytime = value['DisplayTime'] or ''
-                            destination = value['Destination'] or ''
-                            linenumber = value['LineNumber'] or ''
-                            expected = value['ExpectedDateTime'] or ''
-                            groupofline = value['GroupOfLine'] or ''
-                            icon = iconswitcher.get(traffictype,
-                                                    'mdi:train-car')
-                            diff = self.parseDepartureTime(displaytime)
-                            departures.append({
-                                'line': linenumber,
-                                'direction': direction,
-                                'departure': displaytime,
-                                'destination': destination,
-                                'time': diff,
-                                'expected': datetime.strptime(
-                                    expected, '%Y-%m-%dT%H:%M:%S'
-                                ),
-                                'type': traffictype,
-                                'groupofline': groupofline,
-                                'icon': icon,
-                            })
-
-                    newdata['data'] = sorted(departures,
-                                             key=lambda k: k['time'])
+                    newdata['data'] = sorted(departures, key=lambda k: k['time'])
                     newdata['attribution'] = "Stockholms Lokaltrafik"
                     newdata['last_updated'] = now().strftime('%Y-%m-%d %H:%M:%S')
                     newdata['api_result'] = "Success"
@@ -936,6 +983,9 @@ class HaslWorker(object):
 
     async def assert_tl2(self, key):
         logger.debug("[assert_tl2] Entered")
+
+        if not key:
+            key = "default_tl2"
 
         if key not in self.data.tl2:
             logger.debug("[assert_tl2] Registering key")
@@ -977,23 +1027,67 @@ class HaslWorker(object):
 
                 api = slapi_tl2(tl2key)
                 apidata = await api.request()
-                apidata = apidata['ResponseData']['TrafficTypes']
 
-                responselist = {}
-                for response in apidata:
-                    statustype = ('ferry' if response['Type'] == 'fer' else response['Type'])
+                # Map transport modes from Deviations API to sensor keys
+                mode_map = {
+                    'METRO': 'metro',
+                    'BUS': 'bus',
+                    'TRAM': 'tram',
+                    'TRAIN': 'train',
+                    'SHIP': 'ship',
+                    'FERRY': 'ship',
+                    'PENDELTAG': 'train',
+                    'LOKALBANOR': 'tram',
+                }
 
-                    for event in response['Events']:
-                        event['Status'] = statuses.get(event['StatusIcon'])
-                        event['StatusIcon'] = \
-                            statusIcons.get(event['StatusIcon'])
+                # Start with all modes in good status
+                responselist = {
+                    'metro': {'status': 'EventGood', 'status_icon': 'mdi:check', 'events': []},
+                    'bus': {'status': 'EventGood', 'status_icon': 'mdi:check', 'events': []},
+                    'tram': {'status': 'EventGood', 'status_icon': 'mdi:check', 'events': []},
+                    'train': {'status': 'EventGood', 'status_icon': 'mdi:check', 'events': []},
+                    'ship': {'status': 'EventGood', 'status_icon': 'mdi:check', 'events': []}
+                }
 
-                    responsedata = {
-                        'status': statuses.get(response['StatusIcon']),
-                        'status_icon': statusIcons.get(response['StatusIcon']),
-                        'events': response['Events']
+                # New API returns array of deviations; categorize by transport mode
+                for dev in apidata:
+                    if 'message_variants' not in dev:
+                        continue
+
+                    # Find the Swedish message variant
+                    variant = next((v for v in dev['message_variants'] if v.get('language') == 'sv'), None)
+                    if not variant:
+                        continue
+
+                    # Determine affected transport modes from scope_elements
+                    affected_modes = set()
+                    for scope in dev.get('scope_elements', []):
+                        for line in scope.get('lines', []):
+                            mode = line.get('transport_mode', '').upper()
+                            mapped = mode_map.get(mode)
+                            if mapped:
+                                affected_modes.add(mapped)
+                    if not affected_modes:
+                        affected_modes = {'metro', 'bus', 'tram', 'train', 'ship'}
+
+                    importance = dev.get('priority', {}).get('importance_level', 5)
+                    status = 'EventMinor' if importance >= 5 else 'EventMajor'
+                    status_icon = statusIcons.get(status, 'mdi:clock-alert-outline')
+
+                    event = {
+                        'StatusIcon': status,
+                        'Status': statuses.get(status, 'Minor'),
+                        'Header': variant.get('header', ''),
+                        'Details': variant.get('details', ''),
+                        'Expanded': True
                     }
-                    responselist[statustype] = responsedata
+
+                    for mode in affected_modes:
+                        responselist[mode]['events'].append(event)
+                        # Escalate status if needed
+                        if responselist[mode]['status'] == 'EventGood' or status == 'EventMajor':
+                            responselist[mode]['status'] = status
+                            responselist[mode]['status_icon'] = status_icon
 
                 # Attribution and update sensor data.
                 newdata['data'] = responselist
