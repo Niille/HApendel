@@ -6,13 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.4] (2026-03-06)
 
-### Fixes
-- Updated SL APIs to new endpoints as old ones were shut down in 2024. No API keys required for SL services anymore.
+### Fixed
+- Migrated all SL API endpoints to new Trafiklab integration APIs — the old `api.sl.se` endpoints were shut down in March 2024
+- Departure board now correctly parses plural transport type keys (`metros`, `buses`, `trains`, `trams`, `ships`) from the new SL Transport API
+- Journey planner updated to handle both v1 and v2 response schemas (field names changed between versions)
+- Traffic status deviations now categorized per transport mode (metro/bus/tram/train/ship) using `scope_elements` from the Deviations API
+- Config UI: SL API key fields are now optional since the new APIs require no key
+
+### Changed
+- SL Departure Board (ri4) → `transport.integration.sl.se/v1/`
+- SL Deviations (si2, tl2) → `deviations.integration.sl.se/v1/`
+- SL Journey Planner (rp3, pu1) → `journeyplanner.integration.sl.se/v2/`
+
+## [3.1.3] (2024-03-06)
+
+### Fixed
+- Updated SL API URLs to extend functionality until old `api.sl.se` endpoints were shut down at end of March 2024
 
 ## [3.1.2] (2024-03-06)
 
-### Fixes
-Fixes spelling/grammar fixes thanks @systemcrash
+### Fixed
+- Spelling/grammar fixes — thanks @systemcrash
 
 ## [3.1.1] (2023-09-10)
 
@@ -421,6 +435,10 @@ Forked from 2.2.3 but changes from later versions are implemented as needed.
 - This is a great day indeed.
 
 [keep-a-changelog]: http://keepachangelog.com/en/1.0.0/
+[3.1.4]: https://github.com/hasl-sensor/integration/compare/3.1.3...3.1.4
+[3.1.3]: https://github.com/hasl-sensor/integration/compare/3.1.2...3.1.3
+[3.1.2]: https://github.com/hasl-sensor/integration/compare/3.1.1...3.1.2
+[3.1.1]: https://github.com/hasl-sensor/integration/compare/3.1...3.1.1
 [3.1.0b2]: https://github.com/hasl-sensor/integration/compare/3.1.0b1...3.1.0b2
 [3.1.0b1]: https://github.com/hasl-sensor/integration/compare/3.0.6...3.1.0b1
 [3.0.6]: https://github.com/hasl-sensor/integration/compare/3.0.5...3.0.6
