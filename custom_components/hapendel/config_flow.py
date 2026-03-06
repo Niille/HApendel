@@ -1,7 +1,9 @@
 """Config flow for the HASL component."""
 import voluptuous
+import voluptuous as vol
 import logging
 import uuid
+import httpx
 
 from homeassistant import config_entries
 from homeassistant.exceptions import HomeAssistantError
@@ -11,6 +13,7 @@ from .const import (
     DOMAIN,
     SCHEMA_VERSION,
     CONF_NAME,
+    CONF_SITE_ID,
     SENSOR_RRARR,
     SENSOR_RRROUTE,
     SENSOR_RRDEP,
@@ -23,6 +26,10 @@ from .const import (
     CONF_INTEGRATION_TYPE,
     CONF_INTEGRATION_LIST,
 )
+
+CONF_SEARCH_STRING = 'search_string'
+CONF_PICKED_LOCATION = 'picked_location'
+SL_SITES_URL = 'https://transport.integration.sl.se/v1/sites'
 
 from .config_schema import (
     hasl_base_config_schema,
@@ -89,7 +96,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._userdata = user_input
 
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_STANDARD:
-            schema = standard_config_option_schema()
+            return self.async_show_form(
+                step_id="location_search",
+                data_schema=voluptuous.Schema({vol.Required(CONF_SEARCH_STRING): str})
+            )
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_STATUS:
             schema = status_config_option_schema()
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_VEHICLE_LOCATION:
@@ -99,13 +109,62 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_ROUTE:
             schema = route_config_option_schema()
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_RRDEP:
-            schema = rrdep_config_option_schema()         
+            schema = rrdep_config_option_schema()
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_RRARR:
-            schema = rrarr_config_option_schema()         
+            schema = rrarr_config_option_schema()
         if user_input[CONF_INTEGRATION_TYPE] == SENSOR_RRROUTE:
-            schema = rrroute_config_option_schema()         
+            schema = rrroute_config_option_schema()
 
         return self.async_show_form(step_id="config", data_schema=voluptuous.Schema(schema), errors=errors)
+
+    async def async_step_location_search(self, user_input):
+        """Search for a stop by name using the SL transport API."""
+        errors = {}
+        search_schema = voluptuous.Schema({vol.Required(CONF_SEARCH_STRING): str})
+
+        if user_input is None:
+            return self.async_show_form(step_id="location_search", data_schema=search_schema)
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    SL_SITES_URL,
+                    params={"name": user_input[CONF_SEARCH_STRING]},
+                    timeout=10
+                )
+                sites = response.json()
+        except Exception:
+            errors["base"] = "location_search_failed"
+            return self.async_show_form(step_id="location_search", data_schema=search_schema, errors=errors)
+
+        if not sites:
+            errors[CONF_SEARCH_STRING] = "no_results"
+            return self.async_show_form(step_id="location_search", data_schema=search_schema, errors=errors)
+
+        # Store results as {display label: site_id}
+        self._location_options = {
+            f"{s['name']} (ID: {s['id']})": s['id'] for s in sites[:15]
+        }
+        options_list = list(self._location_options.keys())
+
+        return self.async_show_form(
+            step_id="location_pick",
+            data_schema=voluptuous.Schema({
+                vol.Required(CONF_PICKED_LOCATION): vol.In(options_list)
+            })
+        )
+
+    async def async_step_location_pick(self, user_input):
+        """Handle stop selection from search results."""
+        if user_input is None:
+            return self.async_show_form(step_id="location_pick", data_schema=voluptuous.Schema({}))
+
+        selected_label = user_input[CONF_PICKED_LOCATION]
+        site_id = self._location_options[selected_label]
+        self._userdata[CONF_SITE_ID] = site_id
+
+        schema = standard_config_option_schema({CONF_SITE_ID: site_id})
+        return self.async_show_form(step_id="config", data_schema=voluptuous.Schema(schema))
 
     async def async_step_config(self, user_input):
         """Handle a flow initialized by the user."""

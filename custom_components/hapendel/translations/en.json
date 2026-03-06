@@ -9,6 +9,18 @@
                     "sensortype": "Which kind of integration?"
                 }
             },
+            "location_search": {
+                "description": "Search for a stop by name to find its Location ID.",
+                "data": {
+                    "search_string": "Stop name"
+                }
+            },
+            "location_pick": {
+                "description": "Select the stop you want to monitor.",
+                "data": {
+                    "picked_location": "Stop"
+                }
+            },
             "config": {
                 "description": "Change integration parameters. More info on https://hasl.sorlov.com",
                 "data": {
@@ -55,6 +67,10 @@
 				}
             }
         }
+    },
+    "error": {
+        "location_search_failed": "Could not connect to the SL API. Check your network and try again.",
+        "no_results": "No stops found. Try a different search term."
     },
     "options": {
         "step": {

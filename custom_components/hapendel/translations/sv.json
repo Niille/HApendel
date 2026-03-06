@@ -9,6 +9,18 @@
                     "sensortype": "Vilken sorts integration är det?"
                 }
             },
+            "location_search": {
+                "description": "Sök efter en hållplats för att hitta dess plats-ID.",
+                "data": {
+                    "search_string": "Hållplatsnamn"
+                }
+            },
+            "location_pick": {
+                "description": "Välj den hållplats du vill bevaka.",
+                "data": {
+                    "picked_location": "Hållplats"
+                }
+            },
             "config": {
                 "description": "Anpassa parametrar för din integratin. Mer info på https://hasl.sorlov.com",
                 "data": {
@@ -55,6 +67,10 @@
 				}
             }            
         }
+    },
+    "error": {
+        "location_search_failed": "Kunde inte ansluta till SL API. Kontrollera din nätverksanslutning och försök igen.",
+        "no_results": "Inga hållplatser hittades. Prova ett annat sökord."
     },
     "options": {
         "step": {
