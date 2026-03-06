@@ -30,6 +30,7 @@ from .const import (
 CONF_SEARCH_STRING = 'search_string'
 CONF_PICKED_LOCATION = 'picked_location'
 SL_SITES_URL = 'https://transport.integration.sl.se/v1/sites'
+SEARCH_AGAIN_OPTION = '↩ Search again'
 
 from .config_schema import (
     hasl_base_config_schema,
@@ -125,17 +126,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="location_search", data_schema=search_schema)
 
+        query = user_input[CONF_SEARCH_STRING].lower()
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    SL_SITES_URL,
-                    params={"name": user_input[CONF_SEARCH_STRING]},
-                    timeout=10
-                )
-                sites = response.json()
+                response = await client.get(SL_SITES_URL, timeout=10)
+                all_sites = response.json()
         except Exception:
             errors["base"] = "location_search_failed"
             return self.async_show_form(step_id="location_search", data_schema=search_schema, errors=errors)
+
+        sites = [s for s in all_sites if query in s.get('name', '').lower()]
 
         if not sites:
             errors[CONF_SEARCH_STRING] = "no_results"
@@ -145,7 +145,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._location_options = {
             f"{s['name']} (ID: {s['id']})": s['id'] for s in sites[:15]
         }
-        options_list = list(self._location_options.keys())
+        options_list = [SEARCH_AGAIN_OPTION] + list(self._location_options.keys())
 
         return self.async_show_form(
             step_id="location_pick",
@@ -160,6 +160,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(step_id="location_pick", data_schema=voluptuous.Schema({}))
 
         selected_label = user_input[CONF_PICKED_LOCATION]
+
+        if selected_label == SEARCH_AGAIN_OPTION:
+            return self.async_show_form(
+                step_id="location_search",
+                data_schema=voluptuous.Schema({vol.Required(CONF_SEARCH_STRING): str})
+            )
+
         site_id = self._location_options[selected_label]
         self._userdata[CONF_SITE_ID] = site_id
 
