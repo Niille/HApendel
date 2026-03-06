@@ -3,7 +3,7 @@ import jsonpickle
 import isodate
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from homeassistant.util.dt import now
 
 from custom_components.hapendel.slapi import (
@@ -950,13 +950,18 @@ class HaslWorker(object):
                             for value in departuredata[traffictype]:
                                 displaytime = value.get('display', '')
                                 diff = self.parseDepartureTime(displaytime)
+                                expected_raw = value.get('expected', '')
+                                try:
+                                    expected_dt = datetime.fromisoformat(expected_raw)
+                                except (ValueError, TypeError):
+                                    expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff)
                                 departures.append({
                                     'line': value.get('line', {}).get('designation', ''),
                                     'direction': value.get('direction_code', 0),
                                     'departure': displaytime,
                                     'destination': value.get('destination', ''),
                                     'time': diff,
-                                    'expected': value.get('expected', ''),
+                                    'expected': expected_dt,
                                     'type': traffictype.title(),
                                     'groupofline': value.get('line', {}).get('group_of_lines', ''),
                                     'icon': icon,
