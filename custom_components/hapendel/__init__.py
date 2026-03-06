@@ -3,7 +3,7 @@ import jsonpickle
 import time
 import asyncio
 
-from custom_components.hasl3.haslworker import HaslWorker
+from custom_components.hapendel.haslworker import HaslWorker
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.core import HomeAssistant, callback
@@ -25,12 +25,12 @@ from .const import (
     SENSOR_ROUTE,
 )
 
-from custom_components.hasl3.slapi import (
+from custom_components.hapendel.slapi import (
     slapi_rp3,
     slapi_pu1,
 )
 
-from custom_components.hasl3.rrapi import (
+from custom_components.hapendel.rrapi import (
     rrapi_sl
 )
 

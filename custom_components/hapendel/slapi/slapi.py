@@ -19,7 +19,7 @@ from .const import (
     USER_AGENT
 )
 
-logger = logging.getLogger("custom_components.hasl3.slapi")
+logger = logging.getLogger("custom_components.hapendel.slapi")
 
 
 class slapi_fp(object):

@@ -7,10 +7,10 @@ from homeassistant.const import (
 
 HASL_VERSION = "3.1.4"
 SCHEMA_VERSION = "3"
-DOMAIN = "hasl3"
-NAME = "Swedish Public Transport Sensor (HASL)"
+DOMAIN = "hapendel"
+NAME = "HApendel"
 
-DEVICE_NAME = "HASL API Communications Device"
+DEVICE_NAME = "HApendel Communications Device"
 DEVICE_MANUFACTURER = "hasl.sorlov.com"
 DEVICE_MODEL = "Software device"
 DEVICE_GUID = "10ba5386-5fad-49c6-8f03-c7a047cd5aa5-6a618956-520c-41d2-9a10-6d7e7353c7f5"

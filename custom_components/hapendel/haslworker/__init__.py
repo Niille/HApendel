@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from homeassistant.util.dt import now
 
-from custom_components.hasl3.slapi import (
+from custom_components.hapendel.slapi import (
     slapi_fp,
     slapi_tl2,
     slapi_ri4,
@@ -14,14 +14,14 @@ from custom_components.hasl3.slapi import (
     slapi_rp3,
 )
 
-from custom_components.hasl3.rrapi import (
+from custom_components.hapendel.rrapi import (
     rrapi_rra,
     rrapi_rrd,
     rrapi_rrr
 )
 
 
-logger = logging.getLogger("custom_components.hasl3.worker")
+logger = logging.getLogger("custom_components.hapendel.worker")
 
 
 class HASLStatus(object):

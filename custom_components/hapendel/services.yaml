@@ -1,12 +1,12 @@
-# Describes the format for available hasl3 services
+# Describes the format for available hapendel services
 dump_cache:
-  description: Dumps all downloaded and cached data in the HASL worker to a file in the config directory and returns the full path and name of the file created. Response will be triggered as event on the bus (topic is hasl3).
+  description: Dumps all downloaded and cached data in the HASL worker to a file in the config directory and returns the full path and name of the file created. Response will be triggered as event on the bus (topic is hapendel).
 
 get_cache:
-  description: Returns all data downloaded and cached in the HASL worker for manual processing. Response will be triggered as event on the bus (topic is hasl3).
+  description: Returns all data downloaded and cached in the HASL worker for manual processing. Response will be triggered as event on the bus (topic is hapendel).
 
 sl_find_location:
-  description: Searches for a SL location id using a freetext string. Response will be triggered as event on the bus (topic is hasl3).
+  description: Searches for a SL location id using a freetext string. Response will be triggered as event on the bus (topic is hapendel).
   fields:
     api_key:
       name: API Key
@@ -25,7 +25,7 @@ sl_find_location:
         text:
 
 rr_find_location:
-  description: Searches for a Resrobot location id using a freetext string. Response will be triggered as event on the bus (topic is hasl3).
+  description: Searches for a Resrobot location id using a freetext string. Response will be triggered as event on the bus (topic is hapendel).
   fields:
     api_key:
       name: API Key
@@ -44,7 +44,7 @@ rr_find_location:
         text:
 
 sl_find_trip_id:
-  description: Search for a trip between two places using either SL orgigin and destination locations. Response will be triggered as event on the bus (topic is hasl3).
+  description: Search for a trip between two places using either SL orgigin and destination locations. Response will be triggered as event on the bus (topic is hapendel).
   fields:
     api_key:
       name: API Key
@@ -71,7 +71,7 @@ sl_find_trip_id:
         text:
 
 sl_find_trip_pos:
-  description: Search for a trip between two placings using longitude and latitude. Response will be triggered as event on the bus (topic is hasl3).
+  description: Search for a trip between two placings using longitude and latitude. Response will be triggered as event on the bus (topic is hapendel).
   fields:
     api_key:
       name: API Key

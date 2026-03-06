@@ -18,7 +18,7 @@ from .const import (
     USER_AGENT
 )
 
-logger = logging.getLogger("custom_components.hasl3.rrapi")
+logger = logging.getLogger("custom_components.hapendel.rrapi")
 
 class rrapi(object):
 
