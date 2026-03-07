@@ -954,7 +954,7 @@ class HaslWorker(object):
                                 try:
                                     expected_dt = datetime.fromisoformat(expected_raw).replace(tzinfo=None)
                                 except (ValueError, TypeError):
-                                    expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff)
+                                    expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff or 0)
                                 departures.append({
                                     'line': value.get('line', {}).get('designation', ''),
                                     'direction': value.get('direction_code', 0),
@@ -967,7 +967,7 @@ class HaslWorker(object):
                                     'icon': icon,
                                 })
 
-                    newdata['data'] = sorted(departures, key=lambda k: k['time'])
+                    newdata['data'] = sorted(departures, key=lambda k: k['time'] if k['time'] is not None else 9999)
                     newdata['attribution'] = "Stockholms Lokaltrafik"
                     newdata['last_updated'] = now().strftime('%Y-%m-%d %H:%M:%S')
                     newdata['api_result'] = "Success"
@@ -975,7 +975,7 @@ class HaslWorker(object):
                 except Exception as e:
                     newdata['api_result'] = "Error"
                     newdata['api_error'] = str(e)
-                    logger.debug(f"[process_ri4] Error occurred during update {stop}")
+                    logger.error(f"[process_ri4] Error occurred during update {stop}: {e}")
 
                 newdata['api_lastrun'] = now().strftime('%Y-%m-%d %H:%M:%S')
                 self.data.ri4[stop] = newdata
