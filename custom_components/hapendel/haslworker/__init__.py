@@ -952,7 +952,7 @@ class HaslWorker(object):
                                 diff = self.parseDepartureTime(displaytime)
                                 expected_raw = value.get('expected', '')
                                 try:
-                                    expected_dt = datetime.fromisoformat(expected_raw)
+                                    expected_dt = datetime.fromisoformat(expected_raw).replace(tzinfo=None)
                                 except (ValueError, TypeError):
                                     expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff)
                                 departures.append({
