@@ -943,29 +943,61 @@ class HaslWorker(object):
                 try:
                     departures = []
                     departuredata = await api.request(stop)
-                    # New API returns plural keys: metros, buses, trains, trams, ships
-                    for traffictype in ['metros', 'buses', 'trains', 'trams', 'ships']:
-                        if traffictype in departuredata:
-                            icon = iconswitcher.get(traffictype.title(), 'mdi:train-car')
-                            for value in departuredata[traffictype]:
-                                displaytime = value.get('display', '')
-                                diff = self.parseDepartureTime(displaytime)
-                                expected_raw = value.get('expected', '')
-                                try:
-                                    expected_dt = datetime.fromisoformat(expected_raw).replace(tzinfo=None)
-                                except (ValueError, TypeError):
-                                    expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff or 0)
-                                departures.append({
-                                    'line': value.get('line', {}).get('designation', ''),
-                                    'direction': value.get('direction_code', 0),
-                                    'departure': displaytime,
-                                    'destination': value.get('destination', ''),
-                                    'time': diff,
-                                    'expected': expected_dt,
-                                    'type': traffictype.title(),
-                                    'groupofline': value.get('line', {}).get('group_of_lines', ''),
-                                    'icon': icon,
-                                })
+                    mode_icon_map = {
+                        'BUS': 'mdi:bus',
+                        'TRAM': 'mdi:tram',
+                        'SHIP': 'mdi:ferry',
+                        'METRO': 'mdi:subway-variant',
+                        'TRAIN': 'mdi:train',
+                        'FERRY': 'mdi:ferry',
+                    }
+                    # New API returns {"departures": [...]}
+                    if 'departures' in departuredata:
+                        for value in departuredata['departures']:
+                            transport_mode = value.get('line', {}).get('transport_mode', '')
+                            icon = mode_icon_map.get(transport_mode, 'mdi:train-car')
+                            displaytime = value.get('display', '')
+                            diff = self.parseDepartureTime(displaytime)
+                            expected_raw = value.get('expected', '')
+                            try:
+                                expected_dt = datetime.fromisoformat(expected_raw).replace(tzinfo=None)
+                            except (ValueError, TypeError):
+                                expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff or 0)
+                            departures.append({
+                                'line': value.get('line', {}).get('designation', ''),
+                                'direction': value.get('direction_code', 0),
+                                'departure': displaytime,
+                                'destination': value.get('destination', ''),
+                                'time': diff,
+                                'expected': expected_dt,
+                                'type': transport_mode.title(),
+                                'groupofline': value.get('line', {}).get('group_of_lines', ''),
+                                'icon': icon,
+                            })
+                    else:
+                        # Old API format with grouped keys (metros, buses, etc.)
+                        for traffictype in ['metros', 'buses', 'trains', 'trams', 'ships']:
+                            if traffictype in departuredata:
+                                icon = iconswitcher.get(traffictype.title(), 'mdi:train-car')
+                                for value in departuredata[traffictype]:
+                                    displaytime = value.get('display', '')
+                                    diff = self.parseDepartureTime(displaytime)
+                                    expected_raw = value.get('expected', '')
+                                    try:
+                                        expected_dt = datetime.fromisoformat(expected_raw).replace(tzinfo=None)
+                                    except (ValueError, TypeError):
+                                        expected_dt = now().replace(tzinfo=None) + timedelta(minutes=diff or 0)
+                                    departures.append({
+                                        'line': value.get('line', {}).get('designation', ''),
+                                        'direction': value.get('direction_code', 0),
+                                        'departure': displaytime,
+                                        'destination': value.get('destination', ''),
+                                        'time': diff,
+                                        'expected': expected_dt,
+                                        'type': traffictype.title(),
+                                        'groupofline': value.get('line', {}).get('group_of_lines', ''),
+                                        'icon': icon,
+                                    })
 
                     newdata['data'] = sorted(departures, key=lambda k: k['time'] if k['time'] is not None else 9999)
                     newdata['attribution'] = "Stockholms Lokaltrafik"
