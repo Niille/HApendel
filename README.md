@@ -55,10 +55,6 @@ ResRobot API keys are free and available at [Trafiklab](https://www.trafiklab.se
 5. If using ResRobot sensors, get a free API key at [Trafiklab](https://www.trafiklab.se/).
 6. Find SL stop IDs using the built-in _Location Lookup_ service.
 
-## Finding Stop IDs
-
-Use the **HApendel Location Lookup** service in Home Assistant (_Developer Tools_ > _Services_) to search for stop names and retrieve their site IDs. You do not need an API key for this.
-
 ## Visualization
 
 HApendel works with the original HASL Lovelace cards:
@@ -71,3 +67,4 @@ HApendel works with the original HASL Lovelace cards:
 ## Credits
 
 Based on [HASL](https://github.com/hasl-sensor/integration) by [DSorlov](https://github.com/DSorlov) and contributors, licensed under Apache 2.0.
+
