@@ -46,6 +46,8 @@ As of 2024, the SL APIs no longer require API keys. The following sensor types w
 
 ResRobot API keys are free and available at [Trafiklab](https://www.trafiklab.se/).
 
+SL dont have any API ratelimit, currently default call rate is configured to 1min.
+
 ## Install using HACS
 
 1. If you haven't already, [install HACS](https://hacs.xyz/docs/setup/download).
@@ -67,4 +69,5 @@ HApendel works with the original HASL Lovelace cards:
 ## Credits
 
 Based on [HASL](https://github.com/hasl-sensor/integration) by [DSorlov](https://github.com/DSorlov) and contributors, licensed under Apache 2.0.
+
 
